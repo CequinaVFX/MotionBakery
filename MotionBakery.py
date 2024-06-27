@@ -57,10 +57,12 @@ def customize_node(node_class, reference_frame, tracker_node):
 
     elif node_class == 'RotoPaint':
         new_node = nuke.nodes.RotoPaint()
+        new_node.resetKnobsToDefault()
         roto_class = True
 
     elif node_class == 'CornerPin':
         new_node = nuke.nodes.CornerPin2D()
+        new_node.resetKnobsToDefault()
         tranform_class = True
 
     if tranform_class:
