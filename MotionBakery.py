@@ -1,23 +1,27 @@
 __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
 __contact__ = 'lucianocequinel@gmail.com'
-__version__ = '1.0.0'
-__release_date__ = 'June, 24 2024'
+__version__ = '1.1.0'
+__release_date__ = 'October, 18 2024'
 __license__ = 'MIT'
 
 import math
+import random
 
 import nuke
-import random
 import nukescripts
 import nuke.rotopaint as rp
-from MotionBakery_settings import standard_roto_node
+import _curvelib as cl
+# import nuke.rotopaint._curvelib as cl
+
+
+from MotionBakery_settings import STANDARD_ROTO_NODE, COLOR_RANGE
 
 
 def generate_color():
-    red = random.random()
-    green = random.random()
-    blue = random.random()
+    red = random.uniform(COLOR_RANGE[0], COLOR_RANGE[1])
+    green = random.uniform(COLOR_RANGE[0], COLOR_RANGE[1])
+    blue = random.uniform(COLOR_RANGE[0], COLOR_RANGE[1])
     return int('{:02x}{:02x}{:02x}ff'.format(int(red * 255), int(green * 255), int(blue * 255)), 16)
 
 
@@ -39,10 +43,10 @@ def getTrackerNames(node) :
 
 
 def customize_node(node_class, reference_frame, tracker_node):
-    x = tracker_node.xpos()
-    y = tracker_node.ypos()
-    w = tracker_node.screenWidth()
-    m = int(x + w / 2)
+    x_position = tracker_node.xpos()
+    y_position = tracker_node.ypos()
+    dag_width = tracker_node.screenWidth()
+    dag_center_point = int(x_position + dag_width / 2)
 
     tranform_class = False
     roto_class = False
@@ -78,42 +82,52 @@ def customize_node(node_class, reference_frame, tracker_node):
         new_node['motionblur_shutter_offset_type'].setValue(
             tracker_node['shutteroffset'].enumName(int(tracker_node['shutteroffset'].getValue())))
 
-        curve = new_node['curves']
-        root = curve.rootLayer
-        newLayer = rp.Layer(curve)
-        newLayer.name = tracker_node.name()
-        root.append(newLayer)
-        curve.changed()
-        layer = curve.toElement(tracker_node.name())
+        # curve = new_node['curves']
+        # root = curve.rootLayer
+        # newLayer = rp.Layer(curve)
+        # newLayer.name = tracker_node.name()
+        # root.append(newLayer)
+        # curve.changed()
+        # layer = curve.toElement(tracker_node.name())
 
-    new_node.setXYpos(int(m + w), int(y + w / 2))
+    new_node.setXYpos(int(dag_center_point + dag_width), int(y_position + dag_width / 2))
     nuke.autoplace(new_node)
 
+    # Add Tab group
     new_node.addKnob(nuke.Tab_Knob('tracker_knob', 'Tracker settings'))
 
+    # Add Reference Frame knob
     new_node.addKnob(nuke.Int_Knob('tr_reference_frame', 'reference frame'))
     new_node['tr_reference_frame'].setValue(reference_frame)
     new_node['label'].setValue('reference frame: {}'.format(str('[value tr_reference_frame]')))
 
-    set_reference = nuke.PyScript_Knob('set_reference', 'set to current frame',
-                                       'nuke.thisNode()["tr_reference_frame"].setValue(nuke.frame())')
-    new_node.addKnob(set_reference)
+    # Add Set Reference Frame button
+    new_node.addKnob(nuke.PyScript_Knob('set_reference',
+                                        'set to current frame',
+                                        'nuke.thisNode()["tr_reference_frame"].setValue(nuke.frame())'))
+
+    # Add Parent Name label
+    parent_label = nuke.Text_Knob('parent', ' ', tracker_node.name())
+    parent_label.setFlag(nuke.STARTLINE)
+    new_node.addKnob(parent_label)
 
     cmd = ("nuke.zoom(2, [{0}, {1}]) "
            "if nuke.toNode('{2}') "
-           "else nuke.message('{2} not found!')").format(x, y,
+           "else nuke.message('{2} not found!')").format(x_position, y_position,
                                                          tracker_node.name())
 
-    goto_parent = nuke.PyScript_Knob('goto_parent', 'go to parent Tracker', cmd)
-    new_node.addKnob(goto_parent)
+    # Add Go to parent button
+    new_node.addKnob(nuke.PyScript_Knob('goto_parent',
+                                        'go to parent Tracker',
+                                        cmd))
 
     return new_node
 
 
 def fourCornersOfAConvexPoly(tracker_node, ref_frame):
-    k = tracker_node['selected_tracks']
-    tracks = tracker_node['tracks']
-    sa = k.getText().split(',')
+    selected_tracks = tracker_node['selected_tracks']
+    all_tracks = tracker_node['tracks']
+    sa = selected_tracks.getText().split(',')
 
     if len(sa) != 4:
         idx = []
@@ -125,15 +139,15 @@ def fourCornersOfAConvexPoly(tracker_node, ref_frame):
     xCol = 2
     yCol = 3
 
-    x = [tracks.getValueAt(ref_frame, i[0] * nCols + xCol),
-         tracks.getValueAt(ref_frame, i[1] * nCols + xCol),
-         tracks.getValueAt(ref_frame, i[2] * nCols + xCol),
-         tracks.getValueAt(ref_frame, i[3] * nCols + xCol)]
+    x = [all_tracks.getValueAt(ref_frame, i[0] * nCols + xCol),
+         all_tracks.getValueAt(ref_frame, i[1] * nCols + xCol),
+         all_tracks.getValueAt(ref_frame, i[2] * nCols + xCol),
+         all_tracks.getValueAt(ref_frame, i[3] * nCols + xCol)]
 
-    y = [tracks.getValueAt(ref_frame, i[0] * nCols + yCol),
-         tracks.getValueAt(ref_frame, i[1] * nCols + yCol),
-         tracks.getValueAt(ref_frame, i[2] * nCols + yCol),
-         tracks.getValueAt(ref_frame, i[3] * nCols + yCol)]
+    y = [all_tracks.getValueAt(ref_frame, i[0] * nCols + yCol),
+         all_tracks.getValueAt(ref_frame, i[1] * nCols + yCol),
+         all_tracks.getValueAt(ref_frame, i[2] * nCols + yCol),
+         all_tracks.getValueAt(ref_frame, i[3] * nCols + yCol)]
 
     import math
     mx = sum(x) / 4
@@ -151,16 +165,135 @@ def fourCornersOfAConvexPoly(tracker_node, ref_frame):
     return idx
 
 
-def copy_animation_to_rotopaint_layer(source_node, target_node):
-    center_x_anim = source_node['center'].animation(0)
-    center_y_anim = source_node['center'].animation(1)
-    translate_x_anim = source_node['translate'].animation(0)
-    translate_y_anim = source_node['translate'].animation(1)
-    rotate_anim = source_node['rotate'].animation(0)
-    scale_x_anim = source_node['scale'].animation(0)
-    scale_y_anim = source_node['scale'].animation(1)
+def copy_animation_to_rotopaint_layer(tracker_node, roto_node):
+    # Create a new Layer inside of the RotoPaint
+    # curve = roto_node['curves']
+    # root = curve.rootLayer
+    # newLayer = rp.Layer(curve)
+    # newLayer.name = tracker_node.name()
+    # root.append(newLayer)
+    # curve.changed()
+    # layer = curve.toElement(tracker_node.name())
 
-    new_layer = target_node['curves'].rootLayer[0]
+    # if isinstance(tracker_node['scale'].value(), list):
+    #     print("The knob is an array class.")
+    # else:
+    #     print("The knob is NOT ARRAY CLASS.")
+
+    # Create linked layer in Roto Node
+    curves_knob = roto_node["curves"]
+    tracked_layer = rp.Layer(curves_knob)
+    tracked_layer.name = tracker_node.name()
+    root = curves_knob.rootLayer
+    root.append(tracked_layer)
+
+    center_x_anim = tracker_node['center'].animation(0)
+    center_y_anim = tracker_node['center'].animation(1)
+    translate_x_anim = tracker_node['translate'].animation(0)
+    translate_y_anim = tracker_node['translate'].animation(1)
+    rotate_anim = tracker_node['rotate'].animation(0)
+    scale_x_anim = tracker_node['scale'].animation(0)
+    # scale_y_anim = tracker_node['scale'].animation(1)
+
+    tracked_layer = roto_node['curves'].rootLayer[0]
+
+    transform = tracked_layer.getTransform()
+
+    translate_x_curve = transform.getTranslationAnimCurve(0)
+    translate_y_curve = transform.getTranslationAnimCurve(1)
+
+    rotate_curve = transform.getRotationAnimCurve(2)
+
+    scale_x_curve = transform.getScaleAnimCurve(0)
+    # scale_y_curve = transform.getScaleAnimCurve(1)
+
+    center_x_curve = transform.getPivotPointAnimCurve(0)
+    center_y_curve = transform.getPivotPointAnimCurve(1)
+
+    for key in translate_x_anim.keys():
+        tx = translate_x_anim.evaluate(key.x) if translate_x_anim else 0
+        ty = translate_y_anim.evaluate(key.x) if translate_y_anim else 0
+
+        rot = rotate_anim.evaluate(key.x) if rotate_anim else 0
+
+        sx = scale_x_anim.evaluate(key.x) if scale_x_anim else 1
+        # sy = scale_y_anim.evaluate(key.x) if scale_y_anim else 1
+
+        cx = center_x_anim.evaluate(key.x) if center_x_anim else 0
+        cy = center_y_anim.evaluate(key.x) if center_y_anim else 0
+
+        translate_x_curve.addKey(key.x, tx)
+        translate_y_curve.addKey(key.x, ty)
+
+        rotate_curve.addKey(key.x, rot)
+
+        scale_x_curve.addKey(key.x, sx)
+        # scale_y_curve.addKey(key.x, sy)
+
+        center_x_curve.addKey(key.x, cx)
+        center_y_curve.addKey(key.x, cy)
+
+        trans_curve_x = cl.AnimCurve()
+        print(trans_curve_x)
+        trans_curve_y = cl.AnimCurve()
+        print(trans_curve_y)
+
+        """        
+        # Set expression
+        trans_curve_x = cl.AnimCurve()
+        trans_curve_y = cl.AnimCurve()
+
+        # ('curve - curve(tr_reference_frame)')
+        trans_curve_x.expressionString = "curve - curve(tr_reference_frame)"
+        trans_curve_y.expressionString = "curve - curve(tr_reference_frame)"
+        trans_curve_x.useExpression = True
+        trans_curve_y.useExpression = True
+
+        rot_curve = cl.AnimCurve()
+        rot_curve.expressionString = "curve - curve(tr_reference_frame)"
+        rot_curve.useExpression = True
+
+        scale_curve = cl.AnimCurve()
+        scale_curve.expressionString = "curve - curve(tr_reference_frame)"
+        scale_curve.useExpression = True
+
+        center_curve_x = cl.AnimCurve()
+        center_curve_y = cl.AnimCurve()
+        center_curve_x.expressionString = "curve - curve(tr_reference_frame)"
+        center_curve_y.expressionString = "curve - curve(tr_reference_frame)"
+        center_curve_x.useExpression = True
+        center_curve_y.useExpression = True
+
+        # Define variable for accessing the getTransform()
+        transform_attr = tracked_layer.getTransform()
+        # Set the Animation Curve for the Translation attribute to the value of the previously defined curve, for both x and y
+        transform_attr.setTranslationAnimCurve(0, trans_curve_x)
+        transform_attr.setTranslationAnimCurve(1, trans_curve_y)
+
+        # Index value of setRotationAnimCurve is 2 even though there is only 1 parameter...
+        # http://www.mail-archive.com/nuke-python@support.thefoundry.co.uk/msg02295.html
+        transform_attr.setRotationAnimCurve(2, rot_curve)
+
+        transform_attr.setScaleAnimCurve(0, scale_curve)
+        # transform_attr.setScaleAnimCurve(1, scale_curve)
+
+        transform_attr.setPivotPointAnimCurve(0, center_curve_x)
+        transform_attr.setPivotPointAnimCurve(1, center_curve_y)
+        """
+
+    curves_knob.rootLayer.append(tracked_layer)
+
+
+def copy_animation_to_rotopaint_layer_BKP(tracker_node, roto_node):
+    center_x_anim = tracker_node['center'].animation(0)
+    center_y_anim = tracker_node['center'].animation(1)
+    translate_x_anim = tracker_node['translate'].animation(0)
+    translate_y_anim = tracker_node['translate'].animation(1)
+    rotate_anim = tracker_node['rotate'].animation(0)
+    scale_x_anim = tracker_node['scale'].animation(0)
+    scale_y_anim = tracker_node['scale'].animation(1)
+
+    stab_layer = roto_node['curves'].rootLayer[0]
 
     transform = new_layer.getTransform()
     translate_x_curve = transform.getTranslationAnimCurve(0)
@@ -189,67 +322,17 @@ def copy_animation_to_rotopaint_layer(source_node, target_node):
         center_y_curve.addKey(key.x, cy)
 
 
-def copy_animation_to_rotopaint_layer_bkp(source_node, target_node):
-    translate_x_anim = source_node['translate'].animation(0)
-    translate_y_anim = source_node['translate'].animation(1)
-    rotate_anim = source_node['rotate'].animation(0)
-    scale_x_anim = source_node['scale'].animation(0)
-    scale_y_anim = source_node['scale'].animation(1)
-    center_x_anim = source_node['center'].animation(0)
-    center_y_anim = source_node['center'].animation(1)
-
-    layer = target_node['curves'].rootLayer[0]
-
-    transform = layer.getTransform()
-    translate_x = transform.getTranslationAnimCurve(0)
-    translate_y = transform.getTranslationAnimCurve(1)
-    rotate = transform.getRotationAnimCurve(2)
-    scale_x = transform.getScaleAnimCurve(0)
-    # scale_y = transform.getScaleAnimCurve(1)
-    center_x = transform.getPivotPointAnimCurve(0)
-    center_y = transform.getPivotPointAnimCurve(1)
-
-    if translate_x_anim:
-        for key in translate_x_anim.keys():
-            translate_x.addKey(key.x, key.y)
-
-    if translate_y_anim:
-        for key in translate_y_anim.keys():
-            translate_y.addKey(key.x, key.y)
-
-    if rotate_anim:
-        for key in rotate_anim.keys():
-            print(key.x, key.y)
-            rotate.addKey(key.x, key.y)
-
-    if scale_x_anim:
-        for key in scale_x_anim.keys():
-            scale_x.addKey(key.x, key.y)
-
-    # if scale_y_anim:
-    #     for key in scale_y_anim.keys():
-    #         scale_y.addKey(key.x, key.y)
-
-    if center_x_anim:
-        for key in center_x_anim.keys():
-            center_x.addKey(key.x, key.y)
-
-    if center_y_anim:
-        for key in center_y_anim.keys():
-            center_y.addKey(key.x, key.y)
-
-
-def copy_animation_to_roto_layer_matrix(source_node, target_node):
+def copy_animation_to_roto_layer_matrix(tracker_node, roto_node):
     # Get the animation curves from the center, translate, rotate, and scale knobs
-    center_x_anim = source_node['center'].animation(0)
-    center_y_anim = source_node['center'].animation(1)
-    translate_x_anim = source_node['translate'].animation(0)
-    translate_y_anim = source_node['translate'].animation(1)
-    rotate_anim = source_node['rotate'].animation(0)
-    scale_x_anim = source_node['scale'].animation(0)
-    scale_y_anim = source_node['scale'].animation(1)
+    center_x_anim = tracker_node['center'].animation(0)
+    center_y_anim = tracker_node['center'].animation(1)
+    translate_x_anim = tracker_node['translate'].animation(0)
+    translate_y_anim = tracker_node['translate'].animation(1)
+    rotate_anim = tracker_node['rotate'].animation(0)
+    scale_x_anim = tracker_node['scale'].animation(0)
+    scale_y_anim = tracker_node['scale'].animation(1)
 
-    layer = target_node['curves'].rootLayer[0]
+    layer = roto_node['curves'].rootLayer[0]
     # Ensure the target node is a Roto node
     # if not isinstance(target_node, nuke.nodes.Roto):
     #     nuke.message("Target node is not a Roto node.")
@@ -306,7 +389,7 @@ def copyKnobValuesAtKeys(src, dst, chan):
         dst.setValue(src.getValue(chan), chan)
 
 
-def copy_animation_to_transform(tracker, custom_node, stabilize=False):
+def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
     # if isinstance(tracker['scale'].value(), float):
     #     print('single value')
     # else:
@@ -314,12 +397,12 @@ def copy_animation_to_transform(tracker, custom_node, stabilize=False):
 
     for knob in ('translate', 'rotate', 'scale', 'center'):
         if knob == 'rotate':
-            copyKnobValuesAtKeys(tracker[knob], custom_node[knob], 0)
+            copyKnobValuesAtKeys(tracker_node[knob], custom_node[knob], 0)
         else:
-            copyKnobValuesAtKeys(tracker[knob], custom_node[knob], 0)
-            copyKnobValuesAtKeys(tracker[knob], custom_node[knob], 1)
+            copyKnobValuesAtKeys(tracker_node[knob], custom_node[knob], 0)
+            copyKnobValuesAtKeys(tracker_node[knob], custom_node[knob], 1)
 
-    srcTransformKnob = tracker['transform']
+    srcTransformKnob = tracker_node['transform']
     srcTransformName = srcTransformKnob.enumName(int(srcTransformKnob.getValue()))
 
     srcTransformIsStabilize = (srcTransformName.find('stabilize') == 0)
@@ -352,9 +435,6 @@ def copy_animation_to_transform(tracker, custom_node, stabilize=False):
 
 
 def bakery(tracker, mode='matchmove'):
-    if not getTrackerNames(tracker):
-        print('No trackers on this Tracker!')
-        return
 
     tracker_name = tracker.name()
     tracker_reference_frame = int(tracker['reference_frame'].value())
@@ -362,80 +442,84 @@ def bakery(tracker, mode='matchmove'):
     stabilize = True if mode == 'stabilize' else False
 
     color = generate_color()
-    if 'color_group' in tracker.knobs():
+
+    if tracker.knobs().get('color_group'):
         color = int(tracker['color_group'].value())
+
     else:
         tracker.addKnob(nuke.Tab_Knob('tracker_knob', 'Tracker Group'))
-        tracker.addKnob(nuke.String_Knob('color_group', 'colour group', str(color)))
+        tracker.addKnob(nuke.String_Knob('color_group', 'color group', str(color)))
 
         tracker['color_group'].setEnabled(False)
         tracker['tile_color'].setValue(color)
 
-    if mode == 'matchmove' or mode == 'stabilize':
-        proposedName = '{}_{}_'.format(tracker_name, 'stabilize' if stabilize else 'matchmove')
+    if tracker['label'].value() == '':
+        tracker['label'].setValue('Operation: [value transform]\n'
+                                  'Reference frame: [value reference frame]')
 
+    proposed_name = '{}_{}_'.format(tracker_name, 'stabilize' if stabilize else 'matchmove')
+    if any([mode == 'matchmove', mode == 'stabilize']):
         custom_node = customize_node(node_class='Transform',
                                      reference_frame=int(tracker['reference_frame'].value()),
                                      tracker_node=tracker)
 
-        custom_node.setName(proposedName, uncollide=True)
+        custom_node.setName(proposed_name, uncollide=True)
         custom_node['tile_color'].setValue(color)
 
         copy_animation_to_transform(tracker, custom_node, stabilize)
 
     elif mode == 'roto':
-        proposedName = '{}_from_{}_'.format(standard_roto_node, tracker_name)
+        proposed_name = '{}_from_{}_'.format(STANDARD_ROTO_NODE, tracker_name)
 
-        custom_roto = customize_node(node_class=standard_roto_node,
+        custom_roto = customize_node(node_class=STANDARD_ROTO_NODE,
                                      reference_frame=tracker_reference_frame,
                                      tracker_node=tracker)
 
-        custom_roto.setName(proposedName, uncollide=True)
+        custom_roto.setName(proposed_name, uncollide=True)
         custom_roto['tile_color'].setValue(color)
 
         copy_animation_to_rotopaint_layer(tracker, custom_roto)
 
     else:
-        idx = fourCornersOfAConvexPoly(tracker, tracker_reference_frame)
+        tracks_index = fourCornersOfAConvexPoly(tracker, tracker_reference_frame)
 
-        if len(idx) != 4:
+        if len(tracks_index) != 4:
             nuke.critical('CornerPin2D export needs exactly 4 tracks selected.')
-
+            return
         else:
-            proposedName = 'MM_CPin_from_{}_'.format(tracker_name)
+            proposed_name = '{}_CPin_matchmove'.format(tracker_name)
 
-            # pin = nuke.nodes.CornerPin2D()
             pin = customize_node(node_class='CornerPin',
                                  reference_frame=tracker_reference_frame,
                                  tracker_node=tracker)
 
-            pin.setName(proposedName, uncollide=True)
+            pin.setName(proposed_name, uncollide=True)
             pin['tile_color'].setValue(color)
 
             toKnobs = ["to1", "to2", "to3", "to4"]
             fromKnobs = ["from1", "from2", "from3", "from4"]
 
-            for i in range(len(idx)):
+            for i in range(len(tracks_index)):
                 k = tracker['tracks']
 
-                xIdx = idx[i] * 31 + 2
-                yIdx = idx[i] * 31 + 3
+                track_x_index = tracks_index[i] * 31 + 2
+                track_y_index = tracks_index[i] * 31 + 3
 
                 p = pin[toKnobs[i]]
                 p.setAnimated(0)
                 p.setAnimated(1)
 
-                for Idx in range(k.getNumKeys(xIdx)):
-                    t = k.getKeyTime(Idx, xIdx)
-                    p.setValueAt(k.getValueAt(t, xIdx), t, 0)
+                for Idx in range(k.getNumKeys(track_x_index)):
+                    t = k.getKeyTime(Idx, track_x_index)
+                    p.setValueAt(k.getValueAt(t, track_x_index), t, 0)
 
-                for Idx in range(k.getNumKeys(yIdx)):
-                    t = k.getKeyTime(Idx, yIdx)
-                    p.setValueAt(k.getValueAt(t, yIdx), t, 1)
+                for Idx in range(k.getNumKeys(track_y_index)):
+                    t = k.getKeyTime(Idx, track_y_index)
+                    p.setValueAt(k.getValueAt(t, track_y_index), t, 1)
 
                 p = pin[fromKnobs[i]]
-                p.setValue(k.getValueAt(tracker_reference_frame, xIdx), 0)
-                p.setValue(k.getValueAt(tracker_reference_frame, yIdx), 1)
+                p.setValue(k.getValueAt(tracker_reference_frame, track_x_index), 0)
+                p.setValue(k.getValueAt(tracker_reference_frame, track_y_index), 1)
 
             pin['from1'].setExpression('to1(tr_reference_frame)')
             pin['from2'].setExpression('to2(tr_reference_frame)')
@@ -443,20 +527,27 @@ def bakery(tracker, mode='matchmove'):
             pin['from4'].setExpression('to4(tr_reference_frame)')
 
 
-def bake_it(mode='matchmove'):
+def bake_selection(mode='matchmove'):
     node = nuke.selectedNodes()
+
     if len(node) == 1:
         tracker = nuke.selectedNode()
         if tracker.Class() == 'Tracker4':
+            if not getTrackerNames(tracker):
+                nuke.message('No trackers on this Tracker!')
+                return
+
+            tracker.setSelected(False)
             bakery(tracker, mode=mode)
         else:
-            print('Select a Tracker Node!')
+            nuke.message('Select a Tracker Node!\nOnly Tracker4 allowed!')
 
     else:
         if len(node) > 1:
-            print('Select only one node!')
+            nuke.message('Select only one node!')
         else:
-            print('Select a Tracker node!')
+            nuke.message('Select a Tracker node!')
 
 
-# bake_it(mode='matchmove', bake_roto=True)
+if __name__ == '__main__':
+    bake_selection(mode='matchmove')
