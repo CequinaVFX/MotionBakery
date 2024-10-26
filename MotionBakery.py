@@ -1,8 +1,8 @@
 __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
 __contact__ = 'lucianocequinel@gmail.com'
-__version__ = '1.1.0'
-__release_date__ = 'October, 18 2024'
+__version__ = '1.1.1'
+__release_date__ = 'October, 26 2024'
 __license__ = 'MIT'
 
 import math
@@ -539,6 +539,7 @@ def bake_selection(mode='matchmove'):
 
             tracker.setSelected(False)
             bakery(tracker, mode=mode)
+            tracker.setSelected(True)
         else:
             nuke.message('Select a Tracker Node!\nOnly Tracker4 allowed!')
 
