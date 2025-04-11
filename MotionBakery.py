@@ -1,7 +1,7 @@
 __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
 __contact__ = 'lucianocequinel@gmail.com'
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 __release_date__ = 'October, 26 2024'
 __license__ = 'MIT'
 
@@ -9,14 +9,42 @@ import math
 import random
 
 import nuke
-import nukescripts
 import nuke.rotopaint as rp
 import _curvelib as cl
-# import nuke.rotopaint._curvelib as cl
 
 
 from MotionBakery_settings import STANDARD_ROTO_NODE, COLOR_RANGE
 
+
+"""
+print()
+node = nuke.selectedNode()# thisNode()
+# node_list = node['string'].value().split()
+
+_node_list = node['string'].value()
+
+node_list = _node_list.translate(None, ' \n\t\r')
+node_list = node_list.split(',')
+print(node_list)
+
+
+new_color = node['tile_color'].value()
+print(new_color)
+
+node['color_group'].setValue(str(new_color))
+
+
+all_nodes = nuke.allNodes()
+
+valid_nodes = [an.name() for an in all_nodes if an.name() in node_list]
+
+for vn in valid_nodes:
+    print(vn)
+    nuke.toNode(vn)['tile_color'].setValue(int(new_color))
+    nuke.toNode(vn)['gl_color'].setValue(int(node_color))
+
+
+"""
 
 def generate_color():
     red = random.uniform(COLOR_RANGE[0], COLOR_RANGE[1])
