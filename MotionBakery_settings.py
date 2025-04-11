@@ -10,4 +10,4 @@ STANDARD_ROTO_NODE = 'RotoPaint'  # 'Roto'
 
 # This is the range to generate each color node group
 # Must be values between 0 and 1
-COLOR_RANGE = (0.1, 0.8)
+COLOR_RANGE = (0.05, 0.7)
