@@ -256,16 +256,17 @@ def copy_animation_to_rotopaint_layer(tracker_node, roto_node):
     # Define variable for accessing the getTransform()
     transform_attr = stab_layer.getTransform()
 
-    trans_curve_x = cl.AnimCurve()
-    trans_curve_y = cl.AnimCurve()
+    if tracker_node['translate'].isAnimated():
+        trans_curve_x = cl.AnimCurve()
+        trans_curve_y = cl.AnimCurve()
 
-    trans_curve_x.expressionString = "translate_curve.x"
-    trans_curve_y.expressionString = "translate_curve.y"
-    trans_curve_x.useExpression = True
-    trans_curve_y.useExpression = True
+        trans_curve_x.expressionString = "translate_curve.x"
+        trans_curve_y.expressionString = "translate_curve.y"
+        trans_curve_x.useExpression = True
+        trans_curve_y.useExpression = True
 
-    transform_attr.setTranslationAnimCurve(0, trans_curve_x)
-    transform_attr.setTranslationAnimCurve(1, trans_curve_y)
+        transform_attr.setTranslationAnimCurve(0, trans_curve_x)
+        transform_attr.setTranslationAnimCurve(1, trans_curve_y)
 
     if tracker_node['rotate'].isAnimated():
         rot_curve = cl.AnimCurve()
@@ -312,10 +313,12 @@ def copy_knob_values_at_keys(src, dst, chan):
 
         for Idx in range(src.getNumKeys(chan)):
             t = src.getKeyTime(Idx, chan)
-            dst.setValueAt(src.getValueAt(t, chan), t, chan)
+            dst.setValueAt(src.getValueAt(t), t)
+            # dst.setValueAt(src.getValueAt(t, chan), t, chan)
 
     else:
-        dst.setValue(src.getValue(chan), chan)
+        dst.setValue(src.getValue())
+        # dst.setValue(src.getValue(chan), chan)
 
 
 def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
@@ -328,12 +331,30 @@ def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
         stabilize (bool, optional): Whether to invert the transform for stabilization. Defaults to False.
     """
 
-    for knob in ('translate', 'rotate', 'scale', 'center'):
-        if knob == 'rotate':
-            copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
-        else:
-            copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
-            copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 1)
+    if tracker_node['translate'].isAnimated():
+        custom_node['translate'].setAnimated()
+        copy_knob_values_at_keys(tracker_node['translate'], custom_node['translate'], 0)
+
+    if tracker_node['rotate'].isAnimated():
+        custom_node['rotate'].setAnimated()
+        copy_knob_values_at_keys(tracker_node['rotate'], custom_node['rotate'], 0)
+
+    if tracker_node['scale'].isAnimated():
+        custom_node['scale'].setAnimated()
+        # custom_node['scale'].setAnimated(1)
+        copy_knob_values_at_keys(tracker_node['scale'], custom_node['scale'], 0)
+
+    if tracker_node['center'].isAnimated():
+        print('Center is animated')
+        custom_node['center'].setAnimated()
+        copy_knob_values_at_keys(tracker_node['center'], custom_node['center'], 0)
+
+    # for knob in ('translate', 'rotate', 'scale', 'center'):
+    #     # if knob == 'rotate':
+    #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
+        # else:
+        #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
+        #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 1)
 
     src_transform_knob = tracker_node['transform']
     src_transform_name = src_transform_knob.enumName(int(src_transform_knob.getValue()))
