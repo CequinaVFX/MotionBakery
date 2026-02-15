@@ -437,7 +437,6 @@ def bakery(tracker_node, mode='matchmove'):
 
         copy_animation_to_transform(tracker_node, custom_node, stabilize_mode)
 
-
     elif mode == 'roto':
         proposed_name = '{}_{}_'.format(STANDARD_ROTO_NODE, tracker_name)
 
