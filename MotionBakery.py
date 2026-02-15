@@ -1,9 +1,9 @@
 __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
-__contact__ = 'lucianocequinel@gmail.com'
-__version__ = '1.2.0'
-__release_date__ = 'April, 12 2025'
-__license__ = 'MIT'
+__website__ = 'https://www.cequina.com/'
+__website_blog__ = 'https://www.cequina.com/post/motion-bakery'
+__version__ = '1.3.1'
+__release_date__ = 'February, 16 2026'
 
 import random
 
@@ -119,13 +119,15 @@ def customize_node(node_class, reference_frame, tracker_node):
                                         'set to current frame',
                                         'nuke.thisNode()["tr_reference_frame"].setValue(nuke.frame())'))
 
-    cmd = ("nuke.zoom(2, [nuke.toNode('{0}').xpos(), nuke.toNode('{0}').ypos()]) "
-           "if nuke.toNode('{0}') "
-           "else nuke.message('{0} not found!')").format(tracker_node.name())
+    cmd = """
+tkn = nuke.toNode('{0}')
+if tkn: nuke.zoom(2, [tkn.xpos(), tkn.ypos()])
+else: nuke.message('{0} not found!')
+""".format(tracker_node.name())
 
     # Add Go to parent button
     new_node.addKnob(nuke.PyScript_Knob('goto_parent',
-                                        'zoom in {}'.format(tracker_node.name()),
+                                        'find {}'.format(tracker_node.name()),
                                         cmd))
 
     if roto_class:
@@ -256,25 +258,22 @@ def copy_animation_to_rotopaint_layer(tracker_node, roto_node):
     # Define variable for accessing the getTransform()
     transform_attr = stab_layer.getTransform()
 
-    if tracker_node['translate'].isAnimated():
-        trans_curve_x = cl.AnimCurve()
-        trans_curve_y = cl.AnimCurve()
+    trans_curve_x = cl.AnimCurve()
+    trans_curve_y = cl.AnimCurve()
 
-        trans_curve_x.expressionString = "translate_curve.x"
-        trans_curve_y.expressionString = "translate_curve.y"
-        trans_curve_x.useExpression = True
-        trans_curve_y.useExpression = True
+    trans_curve_x.expressionString = "translate_curve.x"
+    trans_curve_y.expressionString = "translate_curve.y"
+    trans_curve_x.useExpression = True
+    trans_curve_y.useExpression = True
 
-        transform_attr.setTranslationAnimCurve(0, trans_curve_x)
-        transform_attr.setTranslationAnimCurve(1, trans_curve_y)
+    transform_attr.setTranslationAnimCurve(0, trans_curve_x)
+    transform_attr.setTranslationAnimCurve(1, trans_curve_y)
 
     if tracker_node['rotate'].isAnimated():
         rot_curve = cl.AnimCurve()
         rot_curve.expressionString = "rotate_curve"
         rot_curve.useExpression = True
 
-        # Index value of setRotationAnimCurve is 2 even though there is only 1 parameter...
-        # http://www.mail-archive.com/nuke-python@support.thefoundry.co.uk/msg02295.html
         transform_attr.setRotationAnimCurve(2, rot_curve)
 
     if tracker_node['scale'].isAnimated():
@@ -313,12 +312,10 @@ def copy_knob_values_at_keys(src, dst, chan):
 
         for Idx in range(src.getNumKeys(chan)):
             t = src.getKeyTime(Idx, chan)
-            dst.setValueAt(src.getValueAt(t), t)
-            # dst.setValueAt(src.getValueAt(t, chan), t, chan)
+            dst.setValueAt(src.getValueAt(t, chan), t, chan)
 
     else:
-        dst.setValue(src.getValue())
-        # dst.setValue(src.getValue(chan), chan)
+        dst.setValue(src.getValue(chan), chan)
 
 
 def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
@@ -330,31 +327,15 @@ def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
         custom_node (nuke.Node): The Transform node.
         stabilize (bool, optional): Whether to invert the transform for stabilization. Defaults to False.
     """
-
-    if tracker_node['translate'].isAnimated():
-        custom_node['translate'].setAnimated()
-        copy_knob_values_at_keys(tracker_node['translate'], custom_node['translate'], 0)
-
-    if tracker_node['rotate'].isAnimated():
-        custom_node['rotate'].setAnimated()
-        copy_knob_values_at_keys(tracker_node['rotate'], custom_node['rotate'], 0)
-
-    if tracker_node['scale'].isAnimated():
-        custom_node['scale'].setAnimated()
-        # custom_node['scale'].setAnimated(1)
-        copy_knob_values_at_keys(tracker_node['scale'], custom_node['scale'], 0)
-
-    if tracker_node['center'].isAnimated():
-        print('Center is animated')
-        custom_node['center'].setAnimated()
-        copy_knob_values_at_keys(tracker_node['center'], custom_node['center'], 0)
-
-    # for knob in ('translate', 'rotate', 'scale', 'center'):
-    #     # if knob == 'rotate':
-    #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
-        # else:
-        #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
-        #     copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 1)
+    animated_knobs = []
+    for knob in ('translate', 'rotate', 'scale', 'center'):
+        if tracker_node[knob].isAnimated():
+            animated_knobs.append(knob)
+            if knob == 'rotate':
+                copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
+            else:
+                copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 0)
+                copy_knob_values_at_keys(tracker_node[knob], custom_node[knob], 1)
 
     src_transform_knob = tracker_node['transform']
     src_transform_name = src_transform_knob.enumName(int(src_transform_knob.getValue()))
@@ -388,9 +369,11 @@ def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
             rotate_knob.setValueAt(-rotate_knob.getValueAt(t, 0), t, 0)
 
     custom_node['translate'].setExpression('curve - curve(tr_reference_frame)')
-    custom_node['rotate'].setExpression('curve - curve(tr_reference_frame)')
-    custom_node['scale'].setExpression('curve - curve(tr_reference_frame) + 1')
-    custom_node['center'].setExpression('curve - curve(tr_reference_frame)')
+    if 'rotate' in animated_knobs:
+        custom_node['rotate'].setExpression('curve - curve(tr_reference_frame)')
+
+    if 'scale' in animated_knobs:
+        custom_node['scale'].setExpression('curve - curve(tr_reference_frame) + 1')
 
 
 def check_color_group(tracker_node):
@@ -456,7 +439,7 @@ def bakery(tracker_node, mode='matchmove'):
 
 
     elif mode == 'roto':
-        proposed_name = '{}_from_{}_'.format(STANDARD_ROTO_NODE, tracker_name)
+        proposed_name = '{}_{}_'.format(STANDARD_ROTO_NODE, tracker_name)
 
         custom_roto = customize_node(node_class=STANDARD_ROTO_NODE,
                                      reference_frame=tracker_reference_frame,
@@ -467,7 +450,6 @@ def bakery(tracker_node, mode='matchmove'):
 
         copy_animation_to_rotopaint_layer(tracker_node, custom_roto)
 
-
     else:  # mode == 'cpin'
         tracks_index = four_corners_of_a_convex_poly(tracker_node, tracker_reference_frame)
 
@@ -475,7 +457,7 @@ def bakery(tracker_node, mode='matchmove'):
             nuke.critical('CornerPin2D export needs exactly 4 tracks selected.')
             return
         else:
-            proposed_name = '{}_CPin_matchmove'.format(tracker_name)
+            proposed_name = '{}_CPin_matchmove_'.format(tracker_name)
 
             pin = customize_node(node_class='CornerPin',
                                  reference_frame=tracker_reference_frame,
