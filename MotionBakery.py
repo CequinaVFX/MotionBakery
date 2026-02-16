@@ -2,17 +2,18 @@ __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
 __website__ = 'https://www.cequina.com/'
 __website_blog__ = 'https://www.cequina.com/post/motion-bakery'
-__version__ = '1.3.1'
+__version__ = '1.3.3'
 __release_date__ = 'February, 16 2026'
 
+import re
+import time
 import random
 
 import nuke
-import nukescripts
 import _curvelib as cl
 import nuke.rotopaint as rp
 
-from MotionBakery_settings import COLOR_RANGE, STANDARD_ROTO_NODE
+from MotionBakery_settings import COLOR_RANGE, STANDARD_ROTO_NODE, MARK_ALL_TRACKS
 
 
 def generate_color():
@@ -20,7 +21,7 @@ def generate_color():
     Generates a random color in hexadecimal format.
 
     Returns:
-        int: A random color value in hexadecimal integer format (e.g., 0xff0000ff for red).
+        int: A random color value in hexadecimal integer format (e.g., 0xff0000ff).
     """
 
     red = random.uniform(COLOR_RANGE[0], COLOR_RANGE[1])
@@ -31,39 +32,53 @@ def generate_color():
 
 def get_tracker_names(node):
     """
-    Extracts the names of the tracks from a Tracker4 node.
+    Extracts the names of the tracks from a Tracker node.
 
     Args:
-        node (nuke.Node): The Tracker4 node to extract track names from.
+        node (nuke.Node): The Tracker node to extract track names from.
 
     Returns:
-        list: A list of track names.  Returns an empty list if no track names are found.
+        list: A list of track names, or an Empty list.
     """
+    return re.findall(r'"([^"]+)"', node['tracks'].toScript())
 
-    n = node["tracks"].toScript()
-    rows = n.split("\n")[34:]
 
-    trackers = []
+def mark_all_trackers(node, mark_translate=True, mark_rotate=True, mark_scale=True) :
+    """
+    All credits to Isaac Spiegel, I stole this code from him! www.isaacspiegel.com
+    I've made some adjustments to fit it into the Bakery.
+    """
+    if not node:
+        return
 
-    for i in rows:
-        try:
-            trk_name = i.split("}")[1].split("{")[0][2:-2]
-            if trk_name != "":
-                trackers.append(trk_name)
-        except Exception:
-            continue
+    knob = node['tracks']
+    num_columns = 31
+    column_translate = 6
+    column_rotate = 7
+    column_scale = 8
+    count = 0
 
-    return trackers
+    total_tracks = len(get_tracker_names(node))
+
+    if total_tracks > 1:
+        while count <= int(total_tracks) - 1 :
+            knob.setValue(mark_translate, num_columns * count + column_translate)
+            knob.setValue(mark_rotate, num_columns * count + column_rotate)
+            knob.setValue(mark_scale, num_columns * count + column_scale)
+
+            count += 1
+
+            time.sleep(0.01)
 
 
 def customize_node(node_class, reference_frame, tracker_node):
     """
-    Creates and customizes a new node (Transform, Roto, RotoPaint, or CornerPin2D) based on a Tracker4 node.
+    Creates and customizes the new node (Transform, Roto, RotoPaint, or CornerPin2D) based on a Tracker node.
 
     Args:
         node_class (str): The class of the node to create ('Transform', 'Roto', 'RotoPaint', or 'CornerPin').
         reference_frame (int): The reference frame for the new node.
-        tracker_node (nuke.Node): The Tracker4 node to derive settings from.
+        tracker_node (nuke.Node): The Tracker node to derive settings from.
 
     Returns:
         nuke.Node: The newly created and customized node.
@@ -169,8 +184,12 @@ else: nuke.message('{0} not found!')
 
 def four_corners_of_a_convex_poly(tracker_node, ref_frame):
     """
-    Determines the order of four selected tracks in a Tracker4 node
+    Determines the order of four selected tracks in a Tracker node
     to ensure they form a convex quadrilateral.
+    This is mostly the original code from Foundry's Nuke Tracker4 node.
+    I've removed the mandatory selection of desired tracks.
+    It will now automatically use the first 4 tracks available (if at least 4 exist).
+    Otherwise, it will return an empty list.
 
     Args:
         tracker_node (nuke.Node): The Tracker4 node.
@@ -178,18 +197,26 @@ def four_corners_of_a_convex_poly(tracker_node, ref_frame):
 
     Returns:
         list: A list of the indices of the four tracks, ordered to form a convex quadrilateral.
-              Returns an empty list if fewer or more than four tracks are selected.
+              Returns an empty list if less than four tracks.
     """
 
     selected_tracks = tracker_node['selected_tracks']
     all_tracks = tracker_node['tracks']
+    total_tracks = len(get_tracker_names(tracker_node))
+
+    # Check if there are 4 tracks selected, Return if not.
     sa = selected_tracks.getText().split(',')
+    if len(sa) == 4:
+        i = [int(sa[0]), int(sa[1]), int(sa[2]), int(sa[3])]
 
-    if len(sa) != 4:
-        idx = []
-        return idx
+    elif total_tracks >= 4:
+        # It will get the first 4 tracks, if nothing is selected.
+        i = [0, 1, 2, 3]
 
-    i = [int(sa[0]), int(sa[1]), int(sa[2]), int(sa[3])]
+    else:
+        # It's not possible to create a CornerPin with less than 4 tracks.
+        # It will return an empty list, to lead to an error message.
+        return []
 
     n_cols = 31
     x_col = 2
@@ -223,11 +250,11 @@ def four_corners_of_a_convex_poly(tracker_node, ref_frame):
 
 def copy_animation_to_rotopaint_layer(tracker_node, roto_node):
     """
-    Creates a layer in a RotoPaint node linked to a Tracker4 node's animation.
+    Creates a layer in a RotoPaint node linked to a Tracker node's animation.
 
     Args:
-        tracker_node (nuke.Node): The Tracker4 node to copy animation from.
-        roto_node (nuke.Node): The RotoPaint node to create the linked layer in.
+        tracker_node (nuke.Node): The Tracker node to copy animation from.
+        roto_node (nuke.Node): The new Roto/RotoPaint node.
     """
 
     grid_x = int(nuke.toNode('preferences').knob('GridWidth').value())
@@ -320,13 +347,14 @@ def copy_knob_values_at_keys(src, dst, chan):
 
 def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
     """
-    Copies animation data from a Tracker4 node to a Transform node.
+    Copies animation data from a Tracker node to a Transform node.
 
     Args:
         tracker_node (nuke.Node): The Tracker4 node.
-        custom_node (nuke.Node): The Transform node.
+        custom_node (nuke.Node) : The new Transform node.
         stabilize (bool, optional): Whether to invert the transform for stabilization. Defaults to False.
     """
+
     animated_knobs = []
     for knob in ('translate', 'rotate', 'scale', 'center'):
         if tracker_node[knob].isAnimated():
@@ -378,7 +406,7 @@ def copy_animation_to_transform(tracker_node, custom_node, stabilize=False):
 
 def check_color_group(tracker_node):
     """
-    Checks if a 'color_group' knob exists on the Tracker4 node; creates it if it doesn't.
+    Checks if a 'color_group' knob exists on the Tracker node; creates it if it doesn't.
     Ensures that the node has a color associated with it for organizational purposes.
 
     Args:
@@ -402,23 +430,21 @@ def check_color_group(tracker_node):
 
 def bakery(tracker_node, mode='matchmove'):
     """
-    Main function to process a Tracker4 node and create new nodes based on the specified mode.
+    Main function to process a Tracker node and create new nodes based on the specified mode.
 
     Args:
-        tracker_node (nuke.Node): The selected Tracker4 node.
-        mode (str, optional): The mode of operation ('matchmove', 'stabilize', 'roto', or 'cpin').
-            Defaults to 'matchmove'.
-            'matchmove':  Creates a Transform node for match moving.
-            'stabilize': Creates a Transform node for stabilization.
-            'roto':      Creates a Roto node linked to the tracker.
-            'cpin':     Creates a CornerPin2D node.
-
+        tracker_node (nuke.Node): The selected Tracker node - Tracker4 only.
+        mode (str, optional): The mode of operation.
+            'matchmove' (default)   : Creates a Transform node for match moving.
+            'stabilize'             : Creates a Transform node for stabilization.
+            'roto'                  : Creates a Roto/ RotoPaint node with a tracked layer.
+            'cpin'                  : Creates a MatchMove CornerPin2D node.
     """
 
     tracker_name = tracker_node.name()
     tracker_reference_frame = int(tracker_node['reference_frame'].value())
 
-    stabilize_mode = True if mode == 'stabilize' else False
+    stabilize_mode = mode == 'stabilize'
 
     color = check_color_group(tracker_node)
 
@@ -426,7 +452,10 @@ def bakery(tracker_node, mode='matchmove'):
         tracker_node['label'].setValue('Operation: [value transform]\n'
                                        'Reference frame: [value reference frame]')
 
-    if mode in ['matchmove', 'stabilize']:
+    if mode in ('matchmove', 'stabilize'):
+        if MARK_ALL_TRACKS:
+            mark_all_trackers(tracker_node)
+
         proposed_name = '{}_{}_'.format(tracker_name, 'stabilize' if stabilize_mode else 'matchmove')
         custom_node = customize_node(node_class='Transform',
                                      reference_frame=tracker_reference_frame,
@@ -438,6 +467,9 @@ def bakery(tracker_node, mode='matchmove'):
         copy_animation_to_transform(tracker_node, custom_node, stabilize_mode)
 
     elif mode == 'roto':
+        if MARK_ALL_TRACKS:
+            mark_all_trackers(tracker_node)
+
         proposed_name = '{}_{}_'.format(STANDARD_ROTO_NODE, tracker_name)
 
         custom_roto = customize_node(node_class=STANDARD_ROTO_NODE,
@@ -452,10 +484,7 @@ def bakery(tracker_node, mode='matchmove'):
     else:  # mode == 'cpin'
         tracks_index = four_corners_of_a_convex_poly(tracker_node, tracker_reference_frame)
 
-        if len(tracks_index) != 4:
-            nuke.critical('CornerPin2D export needs exactly 4 tracks selected.')
-            return
-        else:
+        if len(tracks_index) == 4:
             proposed_name = '{}_CPin_matchmove_'.format(tracker_name)
 
             pin = customize_node(node_class='CornerPin',
@@ -494,6 +523,9 @@ def bakery(tracker_node, mode='matchmove'):
             pin['from2'].setExpression('to2(tr_reference_frame)')
             pin['from3'].setExpression('to3(tr_reference_frame)')
             pin['from4'].setExpression('to4(tr_reference_frame)')
+        else:
+            nuke.critical('CornerPin2D export requires at least 4 tracks, either selected or not.')
+            return
 
 
 def bake_selection(mode='matchmove'):
@@ -514,12 +546,14 @@ def bake_selection(mode='matchmove'):
         if tracker.Class() == 'Tracker4':
 
             if not get_tracker_names(tracker):
-                nuke.message('No trackers on this Tracker!')
+                nuke.message('No tracks on this Tracker!\nYou must track something before baking.')
                 return
 
             tracker.setSelected(False)
 
             bakery(tracker, mode=mode)
+
+            tracker.setSelected(True)
 
         else:
             nuke.message('Select a Tracker Node!\nOnly Tracker4 allowed!')

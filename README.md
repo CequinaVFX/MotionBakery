@@ -1,7 +1,8 @@
 # MotionBakery
 ### An update to the default Exporting Tracking data. 💃
 
-<img width="75%" src=".\imgs\MotionBakery_menu_nodes.jpg" />
+<center><img width="75%" src=".\imgs\MotionBakery_menu_nodes.jpg" /></center>
+<center><img width="40%" src=".\imgs\motionbakery.gif" /></center>
 
 ## Overview
 MotionBakery is a Nuke script designed to streamline the process of creating useful nodes from a Tracker node.
@@ -14,15 +15,16 @@ The intent here is to make it faster and easier to create nodes from tracked dat
 * **Color Grouping:** Applies a random color to the Tracker and the created nodes to make it easy to identify the parenting in the node graph.
 * **Find Parent:** you can easily go to the parent Tracker.
 * **Independent nodes:** each new node is independent, allowing you to set a reference frame for each one.
+* **Unselected CornerPin:** you won't need to select tracks to create a CornerPin2D node. The tool will select the first 4 tracks if nothing is selected.
 
-<img width="50%" src=".\imgs\Settings_tab.jpg" />
+<center><img width="50%" src=".\imgs\Settings_tab.jpg" /></center>
 
 ## Customization 
 In `MotionBakery_settings.py` you can:
 * **Set Shortcuts:** set a shortcut for each operation 🎹
-* **Roto or RotoPaint**: you can choose to create either a Roto or RotoPaint node.
+* **Roto or RotoPaint:** you can choose to create either a Roto or RotoPaint node.
+* **Check all tracks (T, R, S):** it will check all the tracks in the Tracker node.
 > ⚠️ <font color='darkred'><b>You must restart Nuke after changing the settings.</b></font>
-
 
 ## Installation
 1. **Download the [repository](https://github.com/CequinaVFX/MotionBakery)** or from [Nukepedia](www.nukepedia.com)
