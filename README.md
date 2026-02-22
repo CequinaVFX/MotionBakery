@@ -1,8 +1,7 @@
 # MotionBakery
 ### An update to the default Exporting Tracking data. 💃
 
-<center><img width="75%" src=".\imgs\MotionBakery_menu_nodes.jpg" /></center>
-<center><img width="40%" src=".\imgs\motionbakery.gif" /></center>
+<center><img width="40%" src=".\imgs\motionbakery_newnodes.gif" /></center>
 
 ## Overview
 MotionBakery is a Nuke script designed to streamline the process of creating useful nodes from a Tracker node.
@@ -10,14 +9,17 @@ It automates the creation of Transform, Roto or RotoPaint, and CornerPin2D nodes
 The result is exactly the same as if you create the nodes from Tracker.</p>
 The intent here is to make it faster and easier to create nodes from tracked data, allowing artists to extract that data without having to open Tracker properties.
 
+<center><img width="75%" src=".\imgs\MotionBakery_menu_nodes.jpg" /></center>
+
 ## Features
 * **Node Creation:** Creates Transform (match move or stabilize), Roto/RotoPaint, and CornerPin2D nodes from selected Tracker nodes.
 * **Color Grouping:** Applies a random color to the Tracker and the created nodes to make it easy to identify the parenting in the node graph.
 * **Find Parent:** you can easily go to the parent Tracker.
 * **Independent nodes:** each new node is independent, allowing you to set a reference frame for each one.
-* **Unselected CornerPin:** you won't need to select tracks to create a CornerPin2D node. The tool will select the first 4 tracks if nothing is selected.
+* **Unselected CornerPin:** you don't need to select tracks to create a CornerPin2D node. The tool will select the first 4 tracks if nothing is selected.
 
 <center><img width="50%" src=".\imgs\Settings_tab.jpg" /></center>
+<center><img width="50%" src=".\imgs\RotoPaint_node.jpg" /></center>
 
 ## Customization 
 In `MotionBakery_settings.py` you can:

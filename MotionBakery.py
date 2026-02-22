@@ -2,8 +2,8 @@ __title__ = 'MotionBakery'
 __author__ = 'Luciano Cequinel'
 __website__ = 'https://www.cequina.com/'
 __website_blog__ = 'https://www.cequina.com/post/motion-bakery'
-__version__ = '1.3.3'
-__release_date__ = 'February, 16 2026'
+__version__ = '1.3.4'
+__release_date__ = 'February, 22 2026'
 
 import re
 import time
@@ -103,12 +103,10 @@ def customize_node(node_class, reference_frame, tracker_node):
 
     elif node_class == 'RotoPaint':
         new_node = nuke.nodes.RotoPaint()
-        new_node.resetKnobsToDefault()
         roto_class = True
 
     elif node_class == 'CornerPin':
         new_node = nuke.nodes.CornerPin2D()
-        new_node.resetKnobsToDefault()
         transform_class = True
 
     if transform_class:
@@ -118,6 +116,7 @@ def customize_node(node_class, reference_frame, tracker_node):
         new_node['shutteroffset'].setValue(
             tracker_node['shutteroffset'].enumName(int(tracker_node['shutteroffset'].getValue())))
 
+    new_node.resetKnobsToDefault()
     new_node.setXYpos(int(dag_center_point + dag_width), int(y_position + dag_width / 2))
     nuke.autoplace(new_node)
 
@@ -465,6 +464,7 @@ def bakery(tracker_node, mode='matchmove'):
         custom_node['tile_color'].setValue(color)
 
         copy_animation_to_transform(tracker_node, custom_node, stabilize_mode)
+        custom_node.setSelected(False)
 
     elif mode == 'roto':
         if MARK_ALL_TRACKS:
@@ -481,18 +481,20 @@ def bakery(tracker_node, mode='matchmove'):
 
         copy_animation_to_rotopaint_layer(tracker_node, custom_roto)
 
+        custom_roto.setSelected(False)
+
     else:  # mode == 'cpin'
         tracks_index = four_corners_of_a_convex_poly(tracker_node, tracker_reference_frame)
 
         if len(tracks_index) == 4:
             proposed_name = '{}_CPin_matchmove_'.format(tracker_name)
 
-            pin = customize_node(node_class='CornerPin',
+            custom_cpin = customize_node(node_class='CornerPin',
                                  reference_frame=tracker_reference_frame,
                                  tracker_node=tracker_node)
 
-            pin.setName(proposed_name, uncollide=True)
-            pin['tile_color'].setValue(color)
+            custom_cpin.setName(proposed_name, uncollide=True)
+            custom_cpin['tile_color'].setValue(color)
 
             to_knobs = ["to1", "to2", "to3", "to4"]
             from_knobs = ["from1", "from2", "from3", "from4"]
@@ -503,7 +505,7 @@ def bakery(tracker_node, mode='matchmove'):
                 track_x_index = tracks_index[i] * 31 + 2
                 track_y_index = tracks_index[i] * 31 + 3
 
-                p = pin[to_knobs[i]]
+                p = custom_cpin[to_knobs[i]]
                 p.setAnimated(0)
                 p.setAnimated(1)
 
@@ -515,14 +517,17 @@ def bakery(tracker_node, mode='matchmove'):
                     t = k.getKeyTime(Idx, track_y_index)
                     p.setValueAt(k.getValueAt(t, track_y_index), t, 1)
 
-                p = pin[from_knobs[i]]
+                p = custom_cpin[from_knobs[i]]
                 p.setValue(k.getValueAt(tracker_reference_frame, track_x_index), 0)
                 p.setValue(k.getValueAt(tracker_reference_frame, track_y_index), 1)
 
-            pin['from1'].setExpression('to1(tr_reference_frame)')
-            pin['from2'].setExpression('to2(tr_reference_frame)')
-            pin['from3'].setExpression('to3(tr_reference_frame)')
-            pin['from4'].setExpression('to4(tr_reference_frame)')
+            custom_cpin['from1'].setExpression('to1(tr_reference_frame)')
+            custom_cpin['from2'].setExpression('to2(tr_reference_frame)')
+            custom_cpin['from3'].setExpression('to3(tr_reference_frame)')
+            custom_cpin['from4'].setExpression('to4(tr_reference_frame)')
+
+            custom_cpin.setSelected(False)
+
         else:
             nuke.critical('CornerPin2D export requires at least 4 tracks, either selected or not.')
             return

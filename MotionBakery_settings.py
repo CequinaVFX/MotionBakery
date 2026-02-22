@@ -1,4 +1,4 @@
-# Set a custom shortcut for each command
+# Set a custom shortcut for each command, set to None if you don't want a shortcut.
 # MUST BE IN-BETWEEN QUOTES
 MATCHMOVE_SHORTCUT  = 'f2'
 STABILIZE_SHORTCUT  = 'f3'
