@@ -7,7 +7,7 @@
 MotionBakery is a Nuke script designed to streamline the process of creating useful nodes from a Tracker node.
 It automates the creation of Transform, Roto or RotoPaint, and CornerPin2D nodes, copying the animated knobs from Tracker node.</p>
 The result is exactly the same as if you create the nodes from Tracker.</p>
-The intent here is to make it faster and easier to create nodes from tracked data, allowing artists to extract that data without having to open Tracker properties.
+The intent here is not only to make it faster and easier to create nodes from tracked data, but also to create a visual relationship between them.
 
 <center><img width="75%" src=".\imgs\MotionBakery_menu_nodes.jpg" /></center>
 
